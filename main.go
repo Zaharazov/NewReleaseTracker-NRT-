@@ -42,6 +42,7 @@ var artists = []string{
 	"VOILA",
 	"Adam Jensen",
 	"Alec Benjamin",
+	"Grandson",
 }
 
 func main() {
