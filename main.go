@@ -37,84 +37,162 @@ var artists = []string{
 	// A
 	"Adam Jensen",
 	"Against The Current",
+	"Airways",
 	"AJR",
+	"Alan Walker",
 	"Alec Benjamin",
 	"All Time Low",
 	"Arrested Youth",
+	"Asking Alexandria",
+	"AURORA",
 	"Ava Max",
 	"AViVA",
 	// B
+	"Badflower",
+	"Barns Courtney",
+	"bbno$",
+	"blackbear",
 	"BOOKER",
+	"Brainstorm",
 	"Bring Me The Horizon",
+	"Bryce Fox",
+	"Burn The Ballroom",
+	"bulow",
 	// C
 	"Call Me Karizma",
+	"Christian French",
 	"Cjbeards",
 	"Clean Bandit",
+	"COIN",
 	"Confetti",
 	// D
 	"Dean Lewis",
 	"Deepend",
 	"DEIIN",
 	"Demi the Daredevil",
+	"Des Rocs",
+	"DNMO",
+	"Don Diablo",
+	"Dreamers",
 	// E
 	"Ed Sheeran",
+	"Elderbrook",
+	"Ethan Bortnick",
 	// F
+	"Fall Out Boy",
 	"Foo Fighters",
 	// G
 	"Grandson",
+	"8 Graves",
 	// H
 	"Halsey",
+	"half•alive",
+	"Hozier",
+	"Hurts",
 	// I
 	"Ichika Nito",
+	"I DONT KNOW HOW BUT THEY FOUND ME",
 	"Imagine Dragons",
+	"I Prevail",
+	"Islandis",
 	"ItaloBrothers",
 	// J
+	"Jagwar Twin",
 	"Jake Daniels",
+	"Janieck",
+	"JAOVA",
 	"Justin Bieber",
 	// K
+	"K.Flay",
 	"Klaas",
+	"Koste",
+	"KSHMR",
 	// L
+	"Lemaitre",
 	"Like Saturn",
 	"Lucas Estrada",
 	"LUNAX",
+	"Lyre le temps",
 	// M
+	"Mahmood",
+	"Marnik",
+	"Max Leone",
+	"Meltt",
 	"mgk",
+	"Michael Patrick Kelly",
 	"Mike Candys",
 	"Mike Williams",
+	"Mosimann",
+	"My Chemical Romance",
 	// N
+	"New Hope Club",
 	"New Medicine",
+	"Nico Collins",
+	"Noan Kahan",
+	"Noize MC",
 	// O
 	"Oliver Tree",
+	"One Republic",
 	// P
+	"Peter McPoland",
+	"Phem",
+	"Pierce The Vell",
+	"Placebo",
 	"Powfu",
 	// Q
 	// R
 	"Rag'N'Bone Man",
+	"Rare Americans",
+	"Ricky Montgomery",
 	"Robert Grace",
+	"Rompasso",
 	"Rudimental",
 	// S
+	"Saint Motel",
+	"Sea Girls",
+	"Set It Off",
+	"SHANGUY",
+	"Shawn Mendes",
+	"SIAMES",
 	"Silent Child",
 	"Simple Plan",
+	"Sleeping Wolf",
+	"Sofi Tukker",
 	"Sub Urban",
 	// T
-	"The Killers",
+	"The Blue Stones",
 	"The Hatters",
 	"The Hives",
+	"The Killers",
+	"The Maine",
+	"The People's Thieves",
 	"The Rasmus",
+	"The Score",
+	"The Used",
+	"The Wrecks",
+	"Tom Gregory",
 	"Tom Grennan",
 	"Tom Morello",
 	"tooboe",
+	"Trevor Daniel",
+	"twenty one pilots",
+	"Two Feet",
 	// U
 	"Unlike Pluto",
 	// V
 	"VOILA",
 	// W
+	"WALK THE MOON",
 	"Whethan",
 	// X
 	"X Ambassadors",
 	// Y
 	"Ya Rick",
+	"Years & Years",
+	"Yoshi Flower",
+	"YUNGBLUD",
 	// Z
+	"Zero 9:36",
 	"Zombie Americana",
 }
 
@@ -170,6 +248,9 @@ func main() {
 		if err != nil {
 			log.Fatal("Ошибка получения ответа: ", err)
 		}
+
+		defer response.Body.Close()
+
 		body, err := io.ReadAll(response.Body)
 		if err != nil {
 			log.Fatal("Ошибка получения тела ответа: ", err)
@@ -200,6 +281,8 @@ func main() {
 		log.Fatal("Ошибка получения ответа: ", err)
 	}
 
+	defer response.Body.Close()
+
 	if response.StatusCode == 401 {
 		data := url.Values{}
 		data.Set("grant_type", "refresh_token")
@@ -218,6 +301,9 @@ func main() {
 		if err != nil {
 			log.Fatal("Ошибка получения ответа: ", err)
 		}
+
+		defer response.Body.Close()
+
 		body, err := io.ReadAll(response.Body)
 		if err != nil {
 			log.Fatal("Ошибка получения тела ответа: ", err)
@@ -253,6 +339,9 @@ func main() {
 			log.Println("Ошибка получения ответа: ", err)
 			continue
 		}
+
+		defer response.Body.Close()
+
 		body, err := io.ReadAll(response.Body)
 		if err != nil {
 			log.Println("Ошибка получения тела ответа: ", err)
@@ -284,6 +373,9 @@ func main() {
 			log.Println("Ошибка получения ответа: ", err)
 			continue
 		}
+
+		defer response.Body.Close()
+
 		body, err = io.ReadAll(response.Body)
 		if err != nil {
 			log.Println("Ошибка получения тела ответа: ", err)
