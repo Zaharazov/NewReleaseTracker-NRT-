@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -30,160 +32,298 @@ type ReleaseResponse struct {
 		ID          string `json:"id"`
 		Name        string `json:"name"`
 		ReleaseDate string `json:"release_date"`
+		Images      []struct {
+			URL string `json:"url"`
+		} `json:"images"`
 	} `json:"items"`
+}
+
+func SaveImageFromRelease(imageURL, releaseName string, client *http.Client) error {
+	request, err := http.NewRequest("GET", imageURL, nil)
+
+	if err != nil {
+		log.Println("Ошибка получения изображения: ", err)
+		return err
+	}
+
+	response, err := client.Do(request)
+
+	if err != nil {
+		log.Println("Ошибка получения ответа: ", err)
+		return err
+	}
+	defer response.Body.Close()
+
+	re := regexp.MustCompile(`[<>:"/\\|?*]`)
+	releaseName = re.ReplaceAllString(releaseName, "")
+
+	filePath := filepath.Join(folderName, releaseName+".jpg")
+	file, err := os.Create(filePath)
+	if err != nil {
+		log.Println("Ошибка создания файла с изображением: ", err)
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, response.Body)
+	if err != nil {
+		log.Println("Ошибка загрузки изображения в файл: ", err)
+		return err
+	}
+	return nil
 }
 
 var artists = []string{
 	// A
 	"Adam Jensen",
 	"Against The Current",
-	"Airways",
 	"AJR",
 	"Alan Walker",
 	"Alec Benjamin",
+	"Alle Farben",
+	"All Good Things",
 	"All Time Low",
+	"Alok",
+	"Alter.",
+	"angelbaby",
+	"Ariana Grande",
 	"Arrested Youth",
+	"Arrows in Actions",
 	"Asking Alexandria",
 	"AURORA",
+	"AVAION",
 	"Ava Max",
+	"Avicii",
 	"AViVA",
 	// B
 	"Badflower",
 	"Barns Courtney",
+	"Bastille",
+	"BB Cooper",
 	"bbno$",
+	"Bear Ghost",
+	"Bella Poarch",
+	"BENNE",
+	"Besomorph",
 	"blackbear",
+	"Blanks",
 	"BOOKER",
+	"BoyWithUke",
 	"Brainstorm",
 	"Bring Me The Horizon",
+	"BRKN LOVE",
 	"Bryce Fox",
 	"Burn The Ballroom",
 	"bulow",
 	// C
 	"Call Me Karizma",
+	"Cheat Codes",
 	"Christian French",
 	"Cjbeards",
 	"Clean Bandit",
 	"COIN",
+	"Coldplay",
 	"Confetti",
+	"Connor Kauffman",
+	"СТИНТ",
 	// D
+	"Daya",
+	"Dead Poet Society",
 	"Dean Lewis",
 	"Deepend",
+	"Deep Thrills",
 	"DEIIN",
 	"Demi the Daredevil",
+	"Denis First",
 	"Des Rocs",
 	"DNMO",
 	"Don Diablo",
+	"Dotan",
 	"Dreamers",
 	// E
 	"Ed Sheeran",
 	"Elderbrook",
+	"Ellie Gouldling",
 	"Ethan Bortnick",
 	// F
 	"Fall Out Boy",
+	"Fitz and The Tantrums",
 	"Foo Fighters",
+	"Foreign Air",
 	// G
+	"Good Kid",
+	"Grabbitz",
 	"Grandson",
 	"8 Graves",
+	"Green Day",
 	// H
 	"Halsey",
 	"half•alive",
+	"Hollywood Undead",
 	"Hozier",
 	"Hurts",
 	// I
 	"Ichika Nito",
 	"I DONT KNOW HOW BUT THEY FOUND ME",
 	"Imagine Dragons",
+	"I'm Geist",
+	"In Her Own Words",
 	"I Prevail",
 	"Islandis",
 	"ItaloBrothers",
 	// J
 	"Jagwar Twin",
 	"Jake Daniels",
+	"James Arthur",
 	"Janieck",
 	"JAOVA",
+	"Jonas Brothers",
+	"Joywave",
 	"Justin Bieber",
 	// K
+	"KALEO",
+	"Katy Perry",
+	"Kesha",
 	"K.Flay",
+	"Khalid",
 	"Klaas",
 	"Koste",
 	"KSHMR",
+	"Kygo",
 	// L
+	"Layto",
+	"Lady Gaga",
 	"Lemaitre",
+	"Letdown.",
+	"Lewis Capaldi",
 	"Like Saturn",
+	"Linkin Park",
+	"Little Big",
+	"Lost Frequencies",
 	"Lucas Estrada",
 	"LUNAX",
 	"Lyre le temps",
 	// M
 	"Mahmood",
 	"Marnik",
+	"Maroon 5",
+	"Marshmello",
 	"Max Leone",
 	"Meltt",
 	"mgk",
 	"Michael Patrick Kelly",
+	"Michael Shynes",
 	"Mike Candys",
 	"Mike Williams",
+	"Milky Chance",
+	"MISSIO",
 	"Mosimann",
+	"Mother Mother",
 	"My Chemical Romance",
+	"Myles Smith",
+	"Mzlff",
+	"Мукка",
 	// N
+	"Nessa Barrett",
 	"New Hope Club",
 	"New Medicine",
+	"Nico & Chelsea",
 	"Nico Collins",
+	"Nico Santos",
 	"Noan Kahan",
 	"Noize MC",
+	"NOTHING MORE",
 	// O
+	"Odd Chap",
 	"Oliver Tree",
 	"One Republic",
 	// P
+	"Paper Idol",
 	"Peter McPoland",
 	"Phem",
 	"Pierce The Vell",
 	"Placebo",
+	"Portugal. The Man",
 	"Powfu",
+	"pyrokinesis",
 	// Q
 	// R
 	"Rag'N'Bone Man",
 	"Rare Americans",
 	"Ricky Montgomery",
 	"Robert Grace",
+	"Roe Kapara",
 	"Rompasso",
+	"Royal Republic",
+	"Royel Otis",
 	"Rudimental",
+	"RYYZN",
 	// S
 	"Saint Motel",
+	"Sam Feldt",
+	"Scissors Sisters",
 	"Sea Girls",
+	"Selena Gomez",
+	"Self Deception",
 	"Set It Off",
 	"SHANGUY",
 	"Shawn Mendes",
 	"SIAMES",
 	"Silent Child",
 	"Simple Plan",
+	"Skillet",
 	"Sleeping Wolf",
 	"Sofi Tukker",
+	"Sting",
 	"Sub Urban",
 	// T
+	"Teddy Swims",
+	"The Band CAMINO",
+	"The Black Keys",
 	"The Blue Stones",
+	"The Chalkeaters",
 	"The Hatters",
 	"The Hives",
+	"The Kid LAROI",
 	"The Killers",
+	"The Living Tombstone",
 	"The Maine",
+	"The Midnight",
 	"The People's Thieves",
 	"The Rasmus",
 	"The Score",
+	"The Unlikely Candidates",
 	"The Used",
+	"The Weekend",
 	"The Wrecks",
+	"Three Days Grace",
+	"Tokio Hotel",
+	"Tokio Project",
 	"Tom Gregory",
 	"Tom Grennan",
 	"Tom Morello",
+	"Tommy Cash",
+	"Tom Odell",
+	"Tom Walker",
 	"tooboe",
 	"Trevor Daniel",
+	"Trinix",
 	"twenty one pilots",
 	"Two Feet",
+	"Три Дня Дождя",
 	// U
 	"Unlike Pluto",
+	"updog",
 	// V
+	"Vanotek",
+	"Vicetone",
 	"VOILA",
 	// W
 	"WALK THE MOON",
+	"We Are Scientists",
+	"Weathers",
 	"Whethan",
+	"Will Jay",
 	// X
 	"X Ambassadors",
 	// Y
@@ -195,6 +335,9 @@ var artists = []string{
 	"Zero 9:36",
 	"Zombie Americana",
 }
+
+const TGFormat = false
+const folderName = "images"
 
 func main() {
 	client := &http.Client{}
@@ -319,6 +462,22 @@ func main() {
 		fmt.Printf("Access Token обновлён. \nПожалуйста, замените ваш ACCESS_TOKEN в env-файле на: %s \n\n", accessToken)
 	}
 
+	// Создаем хранилище для изображений
+
+	_, err = os.Stat(folderName)
+
+	if err == nil {
+		err = os.RemoveAll(folderName)
+		if err != nil {
+			log.Fatal("Ошибка удаления старых данных: ", err)
+		}
+	}
+
+	err = os.MkdirAll(folderName, os.ModePerm)
+	if err != nil {
+		log.Fatal("Ошибка при создании папки: ", err)
+	}
+
 	// Анализ артистов
 
 	atLeastOne := false
@@ -398,9 +557,22 @@ func main() {
 				continue
 			}
 			if releaseDate.After(oneWeekAgo) && releaseDate.Before(now) {
-				atLeastOne = true
-				fmt.Printf("------------------------------------------------------------------------------------------------------\n")
-				fmt.Printf("|%c| %s - %s (%s)\n|#| Дата выхода: %s \n", unicode.ToUpper(rune((requestData.Artists.Items[0].Name)[0])), requestData.Artists.Items[0].Name, release.Name, release.AlbumType, release.ReleaseDate)
+				if TGFormat {
+					fmt.Printf("• %s - %s\n", requestData.Artists.Items[0].Name, release.Name)
+				} else {
+					atLeastOne = true
+					fmt.Printf("------------------------------------------------------------------------------------------------------\n")
+					fmt.Printf("|%c| %s - %s (%s)\n|#| Дата выхода: %s \n", unicode.ToUpper(rune((requestData.Artists.Items[0].Name)[0])), requestData.Artists.Items[0].Name, release.Name, release.AlbumType, release.ReleaseDate)
+				}
+
+				// Получаем изображение релиза
+
+				imageURL := release.Images[0].URL
+				err := SaveImageFromRelease(imageURL, release.Name, client)
+
+				if err != nil {
+					continue
+				}
 			}
 		}
 	}
