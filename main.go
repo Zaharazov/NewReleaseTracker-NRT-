@@ -10,32 +10,38 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
+	"strconv"
 	"time"
 	"unicode"
-
-	"github.com/joho/godotenv"
 )
 
-type SearchResponse struct {
-	Artists struct {
-		Items []struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		} `json:"items"`
-	} `json:"artists"`
+type ArtistSearchResponse struct {
+	Data []struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	} `json:"data"`
+	Total int `json:"total"`
 }
 
-type ReleaseResponse struct {
-	Items []struct {
-		AlbumType   string `json:"album_type"`
-		ID          string `json:"id"`
-		Name        string `json:"name"`
+type AlbumSearchResponse struct {
+	Data []struct {
+		ID          int    `json:"id"`
+		Title       string `json:"title"`
+		Image       string `json:"cover_xl"`
 		ReleaseDate string `json:"release_date"`
-		Images      []struct {
-			URL string `json:"url"`
-		} `json:"images"`
-	} `json:"items"`
+		RecordType  string `json:"record_type"`
+		Tracklist   string `json:"tracklist"`
+	} `json:"data"`
+	Total int `json:"total"`
+}
+
+type TracklistSearchResponse struct {
+	Data []struct {
+		ID      int    `json:"id"`
+		Title   string `json:"title"`
+		Preview string `json:"preview"`
+	} `json:"data"`
+	Total int `json:"total"`
 }
 
 func SaveImageFromRelease(imageURL, releaseName string, client *http.Client) error {
@@ -57,7 +63,7 @@ func SaveImageFromRelease(imageURL, releaseName string, client *http.Client) err
 	re := regexp.MustCompile(`[<>:"/\\|?*]`)
 	releaseName = re.ReplaceAllString(releaseName, "")
 
-	filePath := filepath.Join(folderName, releaseName+".jpg")
+	filePath := filepath.Join(imageFolderName, releaseName+".jpg")
 	file, err := os.Create(filePath)
 	if err != nil {
 		log.Println("Ошибка создания файла с изображением: ", err)
@@ -68,6 +74,49 @@ func SaveImageFromRelease(imageURL, releaseName string, client *http.Client) err
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
 		log.Println("Ошибка загрузки изображения в файл: ", err)
+		return err
+	}
+	return nil
+}
+
+func SavePreviewFromRelease(previewURL, releaseFolder, releaseName string, client *http.Client) error {
+	request, err := http.NewRequest("GET", previewURL, nil)
+
+	if err != nil {
+		log.Println("Ошибка получения превью: ", err)
+		return err
+	}
+
+	response, err := client.Do(request)
+
+	if err != nil {
+		log.Println("Ошибка получения ответа: ", err)
+		return err
+	}
+	defer response.Body.Close()
+
+	re := regexp.MustCompile(`[<>:"/\\|?*]`)
+	releaseName = re.ReplaceAllString(releaseName, "")
+	releaseFolder = re.ReplaceAllString(releaseFolder, "")
+
+	releaseFolderPath := filepath.Join(previewFolderName, releaseFolder)
+
+	err = os.MkdirAll(releaseFolderPath, os.ModePerm)
+	if err != nil {
+		log.Fatal("Ошибка при создании папки: ", err)
+	}
+
+	filePath := filepath.Join(previewFolderName, releaseFolder, releaseName+".m4a")
+	file, err := os.Create(filePath)
+	if err != nil {
+		log.Println("Ошибка создания файла с превью: ", err)
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, response.Body)
+	if err != nil {
+		log.Println("Ошибка загрузки превью в файл: ", err)
 		return err
 	}
 	return nil
@@ -336,144 +385,43 @@ var artists = []string{
 	"Zombie Americana",
 }
 
-const TGFormat = false
-const folderName = "images"
+const TGFormat = true
+const ImageDownload = true
+const PreviewDownload = true
+const imageFolderName = "images"
+const previewFolderName = "previews"
 
 func main() {
 	client := &http.Client{}
 
-	err := godotenv.Load()
-
-	if err != nil {
-		log.Fatal("Ошибка загрузки .env файла: ", err)
-	}
-
-	redirectURI := os.Getenv("REDIRECT_URI")
-	clientID := os.Getenv("CLIENT_ID")
-	clientSecret := os.Getenv("CLIENT_SECRET")
-
-	accessToken := os.Getenv("ACCESS_TOKEN")
-	refreshToken := os.Getenv("REFRESH_TOKEN")
-
-	// Для тех, кто README не читал
-
-	if redirectURI == "" || clientID == "" || clientSecret == "" {
-		fmt.Printf("Необходимо заполнить обязательные поля в env-файле:\nredirectURI\nclientID\nclientSecret\n")
-		fmt.Printf("Если не знаете, откуда их взять, загляните в README.md\n")
-		os.Exit(1)
-	}
-
-	// Для новых пользователей
-
-	if accessToken == "" || refreshToken == "" {
-
-		fmt.Println("Для получения кода авторизации перейдите по ссылке ниже, скопируйте код из преобразованной ссылки и введите его в консоль.")
-		fmt.Println("https://accounts.spotify.com/authorize?client_id=" + clientID + "&response_type=code&redirect_uri=" + url.QueryEscape(redirectURI) + "&scope=user-read-email&state=test123")
-
-		var code string
-		fmt.Printf("\nВведите ваш code: \n")
-		fmt.Scanln(&code)
-
-		data := url.Values{}
-		data.Set("grant_type", "authorization_code")
-		data.Set("redirect_uri", redirectURI)
-		data.Set("client_id", clientID)
-		data.Set("client_secret", clientSecret)
-		data.Set("code", code)
-
-		request, err := http.NewRequest("POST", "https://accounts.spotify.com/api/token", strings.NewReader(data.Encode()))
-		if err != nil {
-			log.Fatal("Ошибка создания запроса: ", err)
-		}
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-		response, err := client.Do(request)
-		if err != nil {
-			log.Fatal("Ошибка получения ответа: ", err)
-		}
-
-		defer response.Body.Close()
-
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			log.Fatal("Ошибка получения тела ответа: ", err)
-		}
-
-		var responseData map[string]interface{}
-		err = json.Unmarshal(body, &responseData)
-		if err != nil {
-			log.Fatal("Ошибка преобразования тела запроса: ", err)
-		}
-
-		accessToken = responseData["access_token"].(string)
-		refreshToken = responseData["refresh_token"].(string)
-
-		fmt.Printf("\nAccess Token и Refresh Token установлены. \nПожалуйста, замените ваш ACCESS_TOKEN в env-файле на: %s \nА REFRESH_TOKEN на: %s \n\n", accessToken, refreshToken)
-	}
-
-	// Проверяем актуальность токена
-
-	request, err := http.NewRequest("GET", "https://api.spotify.com/v1/me", nil)
-	if err != nil {
-		log.Fatal("Ошибка создания запроса: ", err)
-	}
-	request.Header.Set("Authorization", "Bearer "+accessToken)
-
-	response, err := client.Do(request)
-	if err != nil {
-		log.Fatal("Ошибка получения ответа: ", err)
-	}
-
-	defer response.Body.Close()
-
-	if response.StatusCode == 401 {
-		data := url.Values{}
-		data.Set("grant_type", "refresh_token")
-		data.Set("redirect_uri", redirectURI)
-		data.Set("client_id", clientID)
-		data.Set("client_secret", clientSecret)
-		data.Set("refresh_token", refreshToken)
-
-		request, err := http.NewRequest("POST", "https://accounts.spotify.com/api/token", strings.NewReader(data.Encode()))
-		if err != nil {
-			log.Fatal("Ошибка создания запроса: ", err)
-		}
-		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-		response, err := client.Do(request)
-		if err != nil {
-			log.Fatal("Ошибка получения ответа: ", err)
-		}
-
-		defer response.Body.Close()
-
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			log.Fatal("Ошибка получения тела ответа: ", err)
-		}
-
-		var responseData map[string]interface{}
-		err = json.Unmarshal(body, &responseData)
-		if err != nil {
-			log.Fatal("Ошибка преобразования тела запроса: ", err)
-		}
-
-		accessToken = responseData["access_token"].(string)
-		fmt.Printf("Access Token обновлён. \nПожалуйста, замените ваш ACCESS_TOKEN в env-файле на: %s \n\n", accessToken)
-	}
-
 	// Создаем хранилище для изображений
 
-	_, err = os.Stat(folderName)
+	_, err := os.Stat(imageFolderName)
 
 	if err == nil {
-		err = os.RemoveAll(folderName)
+		err = os.RemoveAll(imageFolderName)
 		if err != nil {
 			log.Fatal("Ошибка удаления старых данных: ", err)
 		}
 	}
 
-	err = os.MkdirAll(folderName, os.ModePerm)
+	err = os.MkdirAll(imageFolderName, os.ModePerm)
+	if err != nil {
+		log.Fatal("Ошибка при создании папки: ", err)
+	}
+
+	// Создаем хранилище для превью
+
+	_, err = os.Stat(previewFolderName)
+
+	if err == nil {
+		err = os.RemoveAll(previewFolderName)
+		if err != nil {
+			log.Fatal("Ошибка удаления старых данных: ", err)
+		}
+	}
+
+	err = os.MkdirAll(previewFolderName, os.ModePerm)
 	if err != nil {
 		log.Fatal("Ошибка при создании папки: ", err)
 	}
@@ -486,12 +434,11 @@ func main() {
 
 		// Получаем id артиста
 
-		request, err := http.NewRequest("GET", "https://api.spotify.com/v1/search?q="+url.QueryEscape(artist)+"&type=artist", nil)
+		request, err := http.NewRequest("GET", "https://api.deezer.com/search/artist?q="+url.QueryEscape(artist), nil)
 		if err != nil {
-			log.Println("Ошибка при получении id артиста: ", err)
+			log.Println("Ошибка создания запроса: ", err)
 			continue
 		}
-		request.Header.Set("Authorization", "Bearer "+accessToken)
 
 		response, err := client.Do(request)
 		if err != nil {
@@ -507,8 +454,8 @@ func main() {
 			continue
 		}
 
-		var requestData SearchResponse
-		err = json.Unmarshal(body, &requestData)
+		var artistResponseData ArtistSearchResponse
+		err = json.Unmarshal(body, &artistResponseData)
 		if err != nil {
 			log.Println("Ошибка преобразования тела запроса: ", err)
 			continue
@@ -516,16 +463,14 @@ func main() {
 
 		// Получаем последние релизы артиста
 
-		if len(requestData.Artists.Items) == 0 {
+		if artistResponseData.Total == 0 {
 			continue
 		}
-		request, err = http.NewRequest("GET", "https://api.spotify.com/v1/artists/"+requestData.Artists.Items[0].ID+"/albums", nil)
+		request, err = http.NewRequest("GET", "https://api.deezer.com/artist/"+strconv.Itoa(artistResponseData.Data[0].ID)+"/albums?index=0&limit=100", nil)
 		if err != nil {
 			log.Println("Ошибка создания запроса: ", err)
 			continue
 		}
-
-		request.Header.Set("Authorization", "Bearer "+accessToken)
 
 		response, err = client.Do(request)
 		if err != nil {
@@ -541,8 +486,8 @@ func main() {
 			continue
 		}
 
-		var releaseResponse ReleaseResponse
-		err = json.Unmarshal(body, &releaseResponse)
+		var albumResponseData AlbumSearchResponse
+		err = json.Unmarshal(body, &albumResponseData)
 		if err != nil {
 			log.Println("Ошибка преобразования тела запроса: ", err)
 			continue
@@ -551,27 +496,65 @@ func main() {
 		now := time.Now()
 		oneWeekAgo := now.AddDate(0, 0, -7)
 
-		for _, release := range releaseResponse.Items {
+		for _, release := range albumResponseData.Data {
 			releaseDate, err := time.Parse("2006-01-02", release.ReleaseDate)
 			if err != nil {
 				continue
 			}
 			if releaseDate.After(oneWeekAgo) && releaseDate.Before(now) {
 				if TGFormat {
-					fmt.Printf("• %s - %s\n", requestData.Artists.Items[0].Name, release.Name)
+					fmt.Printf("• %s - %s\n", artistResponseData.Data[0].Name, release.Title)
 				} else {
 					atLeastOne = true
 					fmt.Printf("------------------------------------------------------------------------------------------------------\n")
-					fmt.Printf("|%c| %s - %s (%s)\n|#| Дата выхода: %s \n", unicode.ToUpper(rune((requestData.Artists.Items[0].Name)[0])), requestData.Artists.Items[0].Name, release.Name, release.AlbumType, release.ReleaseDate)
+					fmt.Printf("|%c| %s - %s (%s)\n|#| Дата выхода: %s \n", unicode.ToUpper(rune((artistResponseData.Data[0].Name)[0])), artistResponseData.Data[0].Name, release.Title, release.RecordType, release.ReleaseDate)
 				}
 
 				// Получаем изображение релиза
 
-				imageURL := release.Images[0].URL
-				err := SaveImageFromRelease(imageURL, release.Name, client)
+				if ImageDownload {
+					imageURL := release.Image
+					err := SaveImageFromRelease(imageURL, release.Title, client)
 
-				if err != nil {
-					continue
+					if err != nil {
+						continue
+					}
+				}
+
+				// Получаем превью релиза
+
+				if PreviewDownload {
+					request, err := http.NewRequest("GET", release.Tracklist+"?limit=100", nil)
+					if err != nil {
+						log.Println("Ошибка создания запроса: ", err)
+						continue
+					}
+
+					response, err := client.Do(request)
+					if err != nil {
+						log.Println("Ошибка получения ответа: ", err)
+						continue
+					}
+
+					defer response.Body.Close()
+
+					body, err = io.ReadAll(response.Body)
+					if err != nil {
+						log.Println("Ошибка получения тела ответа: ", err)
+						continue
+					}
+
+					var tracklistResponseData TracklistSearchResponse
+					err = json.Unmarshal(body, &tracklistResponseData)
+					if err != nil {
+						log.Println("Ошибка преобразования тела запроса: ", err)
+						continue
+					}
+
+					for i := 0; i < tracklistResponseData.Total; i++ {
+						track := tracklistResponseData.Data[i]
+						err = SavePreviewFromRelease(track.Preview, release.Title, track.Title, client)
+					}
 				}
 			}
 		}
