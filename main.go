@@ -125,6 +125,7 @@ func SavePreviewFromRelease(previewURL, releaseFolder, releaseName string, clien
 var artists = []string{
 	// A
 	"Adam Jensen",
+	"Afrojack",
 	"Against The Current",
 	"AJR",
 	"Alan Walker",
@@ -176,6 +177,7 @@ var artists = []string{
 	"Connor Kauffman",
 	"СТИНТ",
 	// D
+	"David Guetta",
 	"Daya",
 	"Dead Poet Society",
 	"Dean Lewis",
@@ -201,6 +203,7 @@ var artists = []string{
 	"Foreign Air",
 	// G
 	"Good Kid",
+	"Good Neighbours",
 	"Grabbitz",
 	"Grandson",
 	"8 Graves",
@@ -249,6 +252,7 @@ var artists = []string{
 	"Linkin Park",
 	"Little Big",
 	"Lost Frequencies",
+	"Lost Stars",
 	"Lucas Estrada",
 	"LUNAX",
 	"Lyre le temps",
@@ -257,6 +261,7 @@ var artists = []string{
 	"Marnik",
 	"Maroon 5",
 	"Marshmello",
+	"Martin Garrix",
 	"Max Leone",
 	"Meltt",
 	"mgk",
@@ -297,7 +302,7 @@ var artists = []string{
 	"pyrokinesis",
 	// Q
 	// R
-	"Rag'N'Bone Man",
+	"Rag'n'Bone Man",
 	"Rare Americans",
 	"Ricky Montgomery",
 	"Robert Grace",
@@ -339,6 +344,7 @@ var artists = []string{
 	"The Maine",
 	"The Midnight",
 	"The People's Thieves",
+	"The Police",
 	"The Rasmus",
 	"The Score",
 	"The Unlikely Candidates",
@@ -369,6 +375,7 @@ var artists = []string{
 	"VOILA",
 	// W
 	"WALK THE MOON",
+	"Waterparks",
 	"We Are Scientists",
 	"Weathers",
 	"Whethan",
@@ -393,6 +400,8 @@ const previewFolderName = "previews"
 
 func main() {
 	client := &http.Client{}
+
+	TGFormatMap := make(map[string][]string, 0)
 
 	// Создаем хранилище для изображений
 
@@ -430,7 +439,7 @@ func main() {
 
 	atLeastOne := false
 
-	for _, artist := range artists {
+	for i, artist := range artists {
 
 		// Получаем id артиста
 
@@ -503,7 +512,7 @@ func main() {
 			}
 			if releaseDate.After(oneWeekAgo) && releaseDate.Before(now) {
 				if TGFormat {
-					fmt.Printf("• %s - %s\n", artistResponseData.Data[0].Name, release.Title)
+					TGFormatMap[release.RecordType] = append(TGFormatMap[release.RecordType], artistResponseData.Data[0].Name+" - "+release.Title)
 				} else {
 					atLeastOne = true
 					fmt.Printf("------------------------------------------------------------------------------------------------------\n")
@@ -556,11 +565,36 @@ func main() {
 						err = SavePreviewFromRelease(track.Preview, release.Title, track.Title, client)
 					}
 				}
+			} else if release.RecordType == "single" {
+				break
 			}
 		}
+
+		if TGFormat {
+			fmt.Printf("Обработано артистов: %d из %d\n", i+1, len(artists))
+		}
+
 	}
 	if atLeastOne {
 		fmt.Printf("------------------------------------------------------------------------------------------------------\n")
+	}
+
+	if TGFormat {
+		for key := range TGFormatMap {
+
+			switch key {
+			case "single":
+				fmt.Println("Синглы:")
+			case "album":
+				fmt.Println("Альбомы:")
+			case "ep":
+				fmt.Println("EP:")
+			}
+
+			for _, release := range TGFormatMap[key] {
+				fmt.Println("• ", release)
+			}
+		}
 	}
 
 	os.Exit(0)
